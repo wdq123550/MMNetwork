@@ -1,0 +1,34 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "Alamofire",
+        "repositoryURL": "https://github.com/Alamofire/Alamofire",
+        "state": {
+          "branch": null,
+          "revision": "513364f870f6bfc468f9d2ff0a95caccc10044c5",
+          "version": "5.10.2"
+        }
+      },
+      {
+        "package": "SmartCodable",
+        "repositoryURL": "https://github.com/iAmMccc/SmartCodable",
+        "state": {
+          "branch": null,
+          "revision": "f16be0d04f7e7b5986580088f3f5e3884c9d5891",
+          "version": "5.0.2"
+        }
+      },
+      {
+        "package": "swift-syntax",
+        "repositoryURL": "https://github.com/swiftlang/swift-syntax",
+        "state": {
+          "branch": null,
+          "revision": "0687f71944021d616d34d922343dcef086855920",
+          "version": "600.0.1"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
