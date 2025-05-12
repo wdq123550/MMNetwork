@@ -37,9 +37,9 @@ public struct MMNetworkConfig {
 private var requestTask: [MMRequest] = [MMRequest]()
 
 /// 请求参数的基类
-open class MMRequestModel: Encodable {}
+open class MMRequestModel: NSObject, Encodable { public override init() { super.init() } }
 /// 响应返回的基类
-open class MMResponseModel: SmartCodable { public required init() {} }
+open class MMResponseModel: NSObject, SmartCodable { required public override init() { super.init() } }
 
 /// HTTP请求基类
 open class MMRequest {
