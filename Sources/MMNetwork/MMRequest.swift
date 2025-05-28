@@ -57,7 +57,7 @@ open class MMRequest {
     /// 因为AFNetwork框架帮我们在每个任务发出之前都添加了后台任务，以向系统申请最多180秒的App后台额外运行时间
     /// 使得App虽然在后台，但是网络请求回来之后依旧能走完请求回来之后的操作.
     /// 而此属性是用来设置，当App处于后台时，``某个网络请求回来`` ``到`` ``处理完此网络请求回来之后的逻辑所需的时间(比如请求成功更新UI，请求失败展示错误)``
-    /// 苹果也鼓励开发者在前台时，请求发出之前也添加后台任务，因为不知道用户什么时候就把App切换到后台了
+    /// 苹果也鼓励开发者在前台时，在请求发出之前也添加后台任务，因为不知道用户什么时候就把App切换到后台了
     /// 默认三秒，三秒后，此请求会去结束掉申请的后台任务，如果App没有额外申请的后台任务，那么App才进入到``冻结在内存``的状态
     /// 此属性不能大于180秒，因为App在后台能向系统申请到的最大普通任务执行时间就是180秒
     /// (这里指的是普通任务，一些特定的后台任务比如后台导航，后台听歌，后台语音通话等功能可以一直常驻后台)
@@ -67,19 +67,22 @@ open class MMRequest {
     /// 参考资料：https://developer.apple.com/documentation/uikit/uiapplication/beginbackgroundtask(expirationhandler:)
     open var backgroundTaskHandleTimeInterval = 3.0
     
+    /// 响应适配器
+    open var responseAdapter: MMResponseAdapterProtocol?
+    
     /// 请求适配器
     private lazy var requestAdapter = {
         MMRequestAdapter(retry: self.retry, requestTimeoutInterval: self.requestTimeoutInterval)
     }()
-
+    
     /// 本次后台任务ID
     private var bgTaskId: UIBackgroundTaskIdentifier = .invalid
     
     /// 发送请求
     /// - Returns:返回的响应模型
-    public func resume() -> PassthroughSubject<MMResponseModel?, Error> {
+    public func resume<T: MMResponseModel>() -> PassthroughSubject<T?, Error> {
         self.pushTask() //强引用请求
-        let subject = PassthroughSubject<MMResponseModel?, Error>() //创建异步发送器
+        let subject = PassthroughSubject<T?, Error>() //创建异步发送器
         //发出请求
         AF.request(MMNetworkConfig.hostAddress + self.requestPath,
                    method: self.requestMethod,
@@ -92,14 +95,20 @@ open class MMRequest {
             //解析请求返回
             switch response.result {
             case .success(let data): //请求成功
-                let model = MMResponseModel.deserializePlist(from: data)
-                subject.send(model)
-                subject.send(completion: .finished)
+                if let responseAdapter = self.responseAdapter {
+                    do {
+                        let dict = try responseAdapter.handleResponse(data)
+                        let model = T.deserialize(from: dict)
+                        subject.send(model)
+                        subject.send(completion: .finished)
+                    } catch let error {
+                        subject.send(completion: .failure(error))
+                    }
+                }
             case .failure(let error): //请求失败
                 subject.send(completion: .failure(error))
             }
-            //去掉强引用
-            self.popTask()
+            self.popTask()//去掉强引用
         }
         return subject
     }
