@@ -104,6 +104,10 @@ open class MMRequest {
                     } catch let error {
                         subject.send(completion: .failure(error))
                     }
+                }else{
+                    let model = T.deserialize(from: data)
+                    subject.send(model)
+                    subject.send(completion: .finished)
                 }
             case .failure(let error): //请求失败
                 subject.send(completion: .failure(error))
