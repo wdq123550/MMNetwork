@@ -7,9 +7,13 @@
 
 import Foundation
 import UIKit
-import Alamofire
 import SmartCodable
 import Combine
+import Alamofire
+
+public typealias RequestModifier = @Sendable (inout URLRequest) throws -> Void
+public typealias ResponseModifier = @Sendable (Data) throws -> [String: Any]
+
 /// 请求的主机地址
 public struct MMNetworkConfig {
     /// 请求URL主机地址(在发出任何请求之前都应先设置此属性)
@@ -48,7 +52,6 @@ open class MMRequest {
     open var requestParameterEncoder: ParameterEncoder { .json }
     /// 请求参数
     open var requestParameter: MMRequestModel?
-    
     /// 当请求发起后，用户突然切换App至后台，此时请求结果还没回来
     /// 随后某个时间点(假设2秒后)，请求结果回来了，但是App此时处于后台状态，无法处理之后的逻辑``(比如请求成功更新UI，请求失败展示错误)``
     /// Alamofire在此情景下内部会发出 ``连接中断`` 的Error
@@ -65,18 +68,11 @@ open class MMRequest {
     /// 这也是为什么明明有些App刚进入后台没几分钟，用户也没开几个App，内存也充足，但是在180秒后再打开，又要重新启动
     /// 因为系统杀死了App(os:小子，竟敢骗我)
     /// 参考资料：https://developer.apple.com/documentation/uikit/uiapplication/beginbackgroundtask(expirationhandler:)
-    open var backgroundTaskHandleTimeInterval = 3.0
-    
-    /// 响应适配器
-    open var responseAdapter: MMResponseAdapterProtocol?
-    
-    /// 请求适配器
-    private lazy var requestAdapter = {
-        MMRequestAdapter(retry: self.retry, requestTimeoutInterval: self.requestTimeoutInterval)
-    }()
-    
-    /// 本次后台任务ID
-    private var bgTaskId: UIBackgroundTaskIdentifier = .invalid
+    open var backgroundTaskHandleTimeInterval: TimeInterval { 3.0 }
+    /// 请求修改器
+    open var requestModifier: RequestModifier? { nil }
+    /// 响应修改器
+    open var responseAdapter: ResponseModifier? { nil }
     
     /// 发送请求
     /// - Returns:返回的响应模型
@@ -90,14 +86,14 @@ open class MMRequest {
                    encoder: self.requestParameterEncoder,
                    headers: self.requestHeader,
                    interceptor: self.requestAdapter,
-                   requestModifier: nil)
+                   requestModifier: self.requestModifier)
         .responseData { response in
             //解析请求返回
             switch response.result {
             case .success(let data): //请求成功
                 if let responseAdapter = self.responseAdapter {
                     do {
-                        let dict = try responseAdapter.handleResponse(data)
+                        let dict = try responseAdapter(data)
                         let model = T.deserialize(from: dict)
                         subject.send(model)
                         subject.send(completion: .finished)
@@ -116,6 +112,13 @@ open class MMRequest {
         }
         return subject
     }
+    
+    /// 请求适配器
+    private lazy var requestAdapter = {
+        MMRequestAdapter(retry: self.retry, requestTimeoutInterval: self.requestTimeoutInterval)
+    }()
+    /// 本次后台任务ID
+    private var bgTaskId: UIBackgroundTaskIdentifier = .invalid
 }
 
 //MARK: - background task
