@@ -9,10 +9,14 @@ import Foundation
 import Alamofire
 
 // 混合编码
-struct MMCompositeEncoding: ParameterEncoding {
+public struct MMCompositeEncoding: ParameterEncoding {
     let urlParameters: Parameters
     let bodyData: Data
-    func encode(_ urlRequest: URLRequestConvertible, with parameters: Parameters?) throws -> URLRequest {
+    public init(urlParameters: Parameters, bodyData: Data) {
+        self.urlParameters = urlParameters
+        self.bodyData = bodyData
+    }
+    public func encode(_ urlRequest: URLRequestConvertible, with parameters: Parameters?) throws -> URLRequest {
         var request = try URLEncoding().encode(urlRequest, with: urlParameters)
         request.httpBody = bodyData
         return request
